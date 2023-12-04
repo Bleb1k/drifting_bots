@@ -63,9 +63,10 @@ impl Bot {
 struct Dish {
 	dish_radius: f32,
 	bots: Vec<Bot>,
-	weather: Vec2,
+	wind: Vec2,
 	center: Vec2,
 	traces: Vec<Trace>,
+	bot_lines: bool,
 }
 impl Dish {
 	fn new() -> Self {
@@ -78,30 +79,25 @@ impl Dish {
 			bots,
 			dish_radius,
 			center,
-			weather,
+			wind: weather,
 			traces,
+			bot_lines: false,
 		}
 	}
 
 	fn draw_bots(&self) {
 		for bot in &self.bots {
 			draw_circle(bot.pos.x, bot.pos.y, bot.radius, bot.color);
-			draw_line(
-				bot.pos.x,
-				bot.pos.y,
-				bot.pos.x + 10.0 * (0.5 - self.weather.x) as f32,
-				bot.pos.y + 10.0 * (0.5 - self.weather.y) as f32,
-				2.0,
-				Color::from_rgba(255, 0, 0, 255),
-			);
-			draw_line(
-				bot.pos.x,
-				bot.pos.y,
-				bot.pos.x + bot.vel.x,
-				bot.pos.y + bot.vel.y,
-				2.0,
-				Color::from_rgba(70, 0, 175, 255),
-			);
+			if self.bot_lines {
+				draw_line(
+					bot.pos.x,
+					bot.pos.y,
+					bot.pos.x + bot.vel.x + 10.0 * (0.5 - self.wind.x) as f32,
+					bot.pos.y + bot.vel.y + 10.0 * (0.5 - self.wind.y) as f32,
+					2.0,
+					Color::from_rgba(155, 0, 255, 255),
+				);
+			}
 		}
 	}
 
@@ -116,8 +112,8 @@ impl Dish {
 		self.draw_traces()
 	}
 
-	fn weather(&mut self, (dx, dy): (f64, f64)) {
-		self.weather = vec2(dx as f32, dy as f32);
+	fn wind(&mut self, (dx, dy): (f64, f64)) {
+		self.wind = vec2(dx as f32, dy as f32);
 	}
 
 	fn update_traces(&mut self) {
@@ -127,7 +123,7 @@ impl Dish {
 			rnd.gen_range(0.0..screen_width()),
 			rnd.gen_range(0.0..screen_height()),
 		);
-		let trace = Trace::new(trace_pos, self.weather);
+		let trace = Trace::new(trace_pos, self.wind);
 		self.traces.push(trace);
 
 		// Remove the oldest trace if there are more than 100 traces
@@ -180,13 +176,15 @@ impl Dish {
 		for bot in &mut self.bots {
 			bot.pos += bot.vel;
 			bot.pos += Vec2 {
-				x: 10.0 * (0.5 - self.weather.x) as f32,
-				y: 10.0 * (0.5 - self.weather.x) as f32,
+				x: 10.0 * (0.5 - self.wind.x) as f32,
+				y: 10.0 * (0.5 - self.wind.x) as f32,
 			};
 		}
 	}
 
 	fn update(&mut self) {
+		self.check_keys();
+
 		self.center = vec2(screen_width() / 2.0, screen_height() / 2.0);
 		self.dish_radius = f32::min(screen_width(), screen_height()) / 2.0;
 
@@ -194,14 +192,31 @@ impl Dish {
 
 		self.update_traces();
 	}
+
+	fn check_keys(&mut self) {
+		if is_key_pressed(KeyCode::Escape) {
+			std::process::exit(0);
+		}
+		if is_key_pressed(KeyCode::Space) {
+			self.bot_lines = !self.bot_lines;
+		}
+	}
 }
 
-#[macroquad::main("Bots in a Dish")]
+fn window_conf() -> Conf {
+	Conf {
+		window_title: "Bots in a Dish".to_owned(),
+		fullscreen: true,
+		..Default::default()
+	}
+}
+
+#[macroquad::main(window_conf)]
 async fn main() {
 	let mut dish = Dish::new();
 
 	loop {
-		dish.weather((get_time() * 0.125).sin_cos());
+		dish.wind((get_time() * 0.125).sin_cos());
 
 		dish.update();
 
