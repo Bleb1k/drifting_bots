@@ -219,6 +219,9 @@ async fn main() {
 		dish.wind((get_time() * 0.125).sin_cos());
 
 		dish.update();
+		if is_key_down(KeyCode::Enter) {
+			dish.update();
+		}
 
 		clear_background(Color::new(0.1, 0.1, 0.1, 1.0)); // clear the screen
 
